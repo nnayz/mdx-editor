@@ -4,7 +4,7 @@
   "rsc": false,
   "tsx": true,
   "tailwind": {
-    "config": "",
+    "config": "tailwind.config.js",
     "css": "src/index.css",
     "baseColor": "neutral",
     "cssVariables": true,
@@ -17,12 +17,5 @@
     "ui": "@/components/ui",
     "lib": "@/lib",
     "hooks": "@/hooks"
-  },
-  "registries": [
-    {
-      "name": "shadcn",
-      "url": "https://ui.shadcn.com",
-      "baseUrl": "https://ui.shadcn.com"
-    }
-  ]
+  }
 }

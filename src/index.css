@@ -80,37 +80,37 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --background: oklch(0.08 0 0);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.11 0 0);
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.11 0 0);
+  --popover-foreground: oklch(0.95 0 0);
+  --primary: oklch(0.75 0.15 240);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.15 0 0);
+  --secondary-foreground: oklch(0.95 0 0);
+  --muted: oklch(0.14 0 0);
+  --muted-foreground: oklch(0.65 0 0);
+  --accent: oklch(0.16 0 0);
+  --accent-foreground: oklch(0.95 0 0);
+  --destructive: oklch(0.60 0.22 27);
+  --border: oklch(0.20 0 0);
+  --input: oklch(0.20 0 0);
+  --ring: oklch(0.75 0.15 240);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar: oklch(0.11 0 0);
+  --sidebar-foreground: oklch(0.95 0 0);
+  --sidebar-primary: oklch(0.75 0.15 240);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.15 0 0);
+  --sidebar-accent-foreground: oklch(0.95 0 0);
+  --sidebar-border: oklch(0.20 0 0);
+  --sidebar-ring: oklch(0.75 0.15 240);
 }
 
 @layer base {
@@ -119,5 +119,122 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .prose {
+    @apply text-foreground leading-7;
+    font-size: 1rem;
+    line-height: 1.75rem;
+  }
+
+  .prose h1 {
+    @apply text-foreground font-bold text-4xl mt-8 mb-4 leading-tight;
+  }
+
+  .prose h2 {
+    @apply text-foreground font-bold text-3xl mt-8 mb-4 leading-snug border-b border-border pb-2;
+  }
+
+  .prose h3 {
+    @apply text-foreground font-semibold text-2xl mt-6 mb-3 leading-snug;
+  }
+
+  .prose h4 {
+    @apply text-foreground font-semibold text-xl mt-5 mb-2 leading-snug;
+  }
+
+  .prose h5 {
+    @apply text-foreground font-semibold text-lg mt-4 mb-2;
+  }
+
+  .prose h6 {
+    @apply text-foreground font-semibold text-base mt-4 mb-2;
+  }
+
+  .prose p {
+    @apply mb-4;
+  }
+
+  .prose a {
+    @apply text-primary no-underline hover:underline font-medium;
+  }
+
+  .prose strong {
+    @apply font-bold text-foreground;
+  }
+
+  .prose em {
+    @apply italic;
+  }
+
+  .prose code {
+    @apply bg-muted px-1.5 py-0.5 rounded text-[0.875em] font-mono;
+    color: oklch(0.85 0.1 320);
+  }
+
+  .dark .prose code {
+    color: oklch(0.85 0.1 280);
+  }
+
+  .prose pre {
+    @apply my-4 overflow-hidden;
+  }
+
+  .prose pre code {
+    @apply bg-transparent px-0 py-0 text-sm;
+  }
+
+  .prose pre > div {
+    @apply overflow-x-auto;
+  }
+
+  .prose blockquote {
+    @apply border-l-4 border-primary/40 italic pl-4 py-2 my-4 text-muted-foreground;
+  }
+
+  .prose ul {
+    @apply list-disc pl-6 mb-4 space-y-2;
+  }
+
+  .prose ol {
+    @apply list-decimal pl-6 mb-4 space-y-2;
+  }
+
+  .prose li {
+    @apply leading-7;
+  }
+
+  .prose li > p {
+    @apply mb-2;
+  }
+
+  .prose hr {
+    @apply border-border my-8;
+  }
+
+  .prose img {
+    @apply rounded-lg my-4;
+  }
+
+  .prose table {
+    @apply w-full border-collapse border border-border my-4 text-sm;
+  }
+
+  .prose th {
+    @apply border border-border px-4 py-2 bg-muted font-semibold text-left;
+  }
+
+  .prose td {
+    @apply border border-border px-4 py-2;
+  }
+
+  .prose thead {
+    @apply bg-muted;
+  }
+
+  .prose tbody tr:hover {
+    @apply bg-muted/50;
   }
 }
