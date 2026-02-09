@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Editor, { loader } from '@monaco-editor/react';
 import { MDXPreview } from './MDXPreview';
 import {
@@ -7,17 +7,67 @@ import {
   ResizablePanelGroup,
 } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
-import { Moon, Sun, Copy, Check } from 'lucide-react';
+import { Moon, Sun, Copy, Check, RotateCcw } from 'lucide-react';
 import { FaGithub } from 'react-icons/fa';
 import defaultMdx from '../sample.mdx?raw';
 
+const STORAGE_KEY = 'mdx-editor-content';
+
 export function MDXEditor() {
-  const [mdxContent, setMdxContent] = useState(defaultMdx);
+  // Load from localStorage or use default
+  const [mdxContent, setMdxContent] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved || defaultMdx;
+    } catch (error) {
+      console.error('Failed to load from localStorage:', error);
+      return defaultMdx;
+    }
+  });
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'idle'>('idle');
+  const saveTimeoutRef = useRef<number | null>(null);
+
+  // Auto-save to localStorage with debouncing
+  useEffect(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = window.setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, mdxContent);
+        setSaveStatus('saved');
+        // Reset to idle after showing "saved" for 2 seconds
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch (error) {
+        console.error('Failed to save to localStorage:', error);
+        setSaveStatus('idle');
+      }
+    }, 500); // Debounce for 500ms
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [mdxContent]);
 
   const handleEditorChange = (value: string | undefined) => {
     setMdxContent(value || '');
+  };
+
+  const resetToDefault = () => {
+    if (confirm('Are you sure you want to reset to the default content? This will clear your saved work.')) {
+      setMdxContent(defaultMdx);
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        setSaveStatus('idle');
+      } catch (error) {
+        console.error('Failed to clear localStorage:', error);
+      }
+    }
   };
 
   const handleEditorDidMount = (_editor: unknown, monaco: typeof import('monaco-editor')) => {
@@ -75,23 +125,42 @@ export function MDXEditor() {
   };
 
   return (
-    <div className="h-screen w-screen bg-black flex items-center justify-center p-8">
-      <div className="h-full w-full max-w-[calc(100vw-4rem)] max-h-[calc(100vh-4rem)] flex flex-col bg-background rounded-2xl overflow-hidden shadow-2xl border border-border/20">
+    <div className="h-screen w-screen bg-black flex items-center justify-center p-3">
+      <div className="h-full w-full max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-1.5rem)] flex flex-col bg-background rounded-xl overflow-hidden shadow-2xl">
         {/* Header */}
-        <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm px-6 py-3.5 flex items-center justify-between flex-shrink-0">
-          <h1 className="text-lg font-semibold tracking-tight">MDX Editor</h1>
-          <div className="flex items-center gap-2">
+        <header className="bg-background/80 backdrop-blur-sm px-4 py-2 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <h1 className="text-base font-semibold tracking-tight">MDX Editor</h1>
+            {saveStatus === 'saved' && (
+              <span className="text-[11px] text-muted-foreground/80 flex items-center gap-1.5 transition-opacity duration-300">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-500/80" />
+                Saved
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-0.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={resetToDefault}
+              aria-label="Reset to default"
+              className="h-8 w-8 hover:bg-muted/50 transition-all duration-200"
+              title="Reset to default content"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={copyToClipboard}
               aria-label="Copy content"
-              className="hover:bg-muted"
+              className="h-8 w-8 hover:bg-muted/50 transition-all duration-200"
+              title="Copy content"
             >
               {copied ? (
-                <Check className="h-4 w-4 text-green-500" />
+                <Check className="h-3.5 w-3.5 text-green-500" />
               ) : (
-                <Copy className="h-4 w-4" />
+                <Copy className="h-3.5 w-3.5" />
               )}
             </Button>
             <Button
@@ -99,21 +168,23 @@ export function MDXEditor() {
               size="icon"
               onClick={() => window.open('https://github.com/nnayz/mdx-editor', '_blank')}
               aria-label="View on GitHub"
-              className="hover:bg-muted"
+              className="h-8 w-8 hover:bg-muted/50 transition-all duration-200"
+              title="View on GitHub"
             >
-              <FaGithub className="h-4 w-4" />
+              <FaGithub className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleTheme}
               aria-label="Toggle theme"
-              className="hover:bg-muted"
+              className="h-8 w-8 hover:bg-muted/50 transition-all duration-200"
+              title="Toggle theme"
             >
               {isDarkMode ? (
-                <Sun className="h-4 w-4" />
+                <Sun className="h-3.5 w-3.5" />
               ) : (
-                <Moon className="h-4 w-4" />
+                <Moon className="h-3.5 w-3.5" />
               )}
             </Button>
           </div>
@@ -125,59 +196,49 @@ export function MDXEditor() {
           className="flex-1 overflow-hidden"
         >
         <ResizablePanel defaultSize={50} minSize={30}>
-          <div className="h-full flex flex-col border-r border-border">
-            <div className="px-4 py-2 border-b border-border/50 bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Editor
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <Editor
-                height="100%"
-                defaultLanguage="markdown"
-                value={mdxContent}
-                onChange={handleEditorChange}
-                onMount={handleEditorDidMount}
-                theme={isDarkMode ? 'custom-dark' : 'custom-light'}
-                options={{
-                  minimap: { enabled: false },
-                  fontSize: 14,
-                  lineNumbers: 'on',
-                  lineNumbersMinChars: 2,
-                  glyphMargin: false,
-                  folding: false,
-                  lineDecorationsWidth: 10,
-                  roundedSelection: true,
-                  scrollBeyondLastLine: false,
-                  automaticLayout: true,
-                  padding: { top: 20, bottom: 20 },
-                  wordWrap: 'on',
-                  wrappingStrategy: 'advanced',
-                  fontFamily: '"JetBrains Mono", "Fira Code", "SF Mono", Monaco, Consolas, monospace',
-                  fontLigatures: true,
-                  smoothScrolling: true,
-                  cursorBlinking: 'smooth',
-                  cursorSmoothCaretAnimation: 'on',
-                  scrollbar: {
-                    vertical: 'auto',
-                    horizontal: 'auto',
-                    verticalScrollbarSize: 10,
-                    horizontalScrollbarSize: 10,
-                  },
-                }}
-              />
-            </div>
+          <div className="h-full flex flex-col">
+            <Editor
+              height="100%"
+              defaultLanguage="markdown"
+              value={mdxContent}
+              onChange={handleEditorChange}
+              onMount={handleEditorDidMount}
+              theme={isDarkMode ? 'custom-dark' : 'custom-light'}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 14,
+                lineNumbers: 'on',
+                lineNumbersMinChars: 2,
+                glyphMargin: false,
+                folding: false,
+                lineDecorationsWidth: 8,
+                roundedSelection: true,
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                padding: { top: 16, bottom: 16 },
+                wordWrap: 'on',
+                wrappingStrategy: 'advanced',
+                fontFamily: '"JetBrains Mono", "Fira Code", "SF Mono", Monaco, Consolas, monospace',
+                fontLigatures: true,
+                smoothScrolling: true,
+                cursorBlinking: 'smooth',
+                cursorSmoothCaretAnimation: 'on',
+                scrollbar: {
+                  vertical: 'auto',
+                  horizontal: 'auto',
+                  verticalScrollbarSize: 8,
+                  horizontalScrollbarSize: 8,
+                },
+              }}
+            />
           </div>
         </ResizablePanel>
 
         <ResizableHandle withHandle />
 
         <ResizablePanel defaultSize={50} minSize={30}>
-          <div className="h-full flex flex-col bg-background border-l border-border">
-            <div className="px-4 py-2 border-b border-border/50 bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Preview
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <MDXPreview content={mdxContent} isDarkMode={isDarkMode} />
-            </div>
+          <div className="h-full flex flex-col bg-background">
+            <MDXPreview content={mdxContent} isDarkMode={isDarkMode} />
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>

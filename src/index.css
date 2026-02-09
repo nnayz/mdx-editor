@@ -124,41 +124,41 @@
 
 @layer components {
   .prose {
-    @apply text-foreground leading-7;
-    font-size: 1rem;
-    line-height: 1.75rem;
+    @apply text-foreground leading-relaxed;
+    font-size: 0.9375rem;
+    line-height: 1.6rem;
   }
 
   .prose h1 {
-    @apply text-foreground font-bold text-4xl mt-8 mb-4 leading-tight;
+    @apply text-foreground font-bold text-3xl mt-6 mb-3 leading-tight;
   }
 
   .prose h2 {
-    @apply text-foreground font-bold text-3xl mt-8 mb-4 leading-snug border-b border-border pb-2;
+    @apply text-foreground font-bold text-2xl mt-6 mb-2.5 leading-snug;
   }
 
   .prose h3 {
-    @apply text-foreground font-semibold text-2xl mt-6 mb-3 leading-snug;
-  }
-
-  .prose h4 {
     @apply text-foreground font-semibold text-xl mt-5 mb-2 leading-snug;
   }
 
+  .prose h4 {
+    @apply text-foreground font-semibold text-lg mt-4 mb-1.5 leading-snug;
+  }
+
   .prose h5 {
-    @apply text-foreground font-semibold text-lg mt-4 mb-2;
+    @apply text-foreground font-semibold text-base mt-3 mb-1.5;
   }
 
   .prose h6 {
-    @apply text-foreground font-semibold text-base mt-4 mb-2;
+    @apply text-foreground font-semibold text-sm mt-3 mb-1.5;
   }
 
   .prose p {
-    @apply mb-4;
+    @apply mb-3;
   }
 
   .prose a {
-    @apply text-primary no-underline hover:underline font-medium;
+    @apply text-primary no-underline hover:underline font-medium transition-colors duration-150;
   }
 
   .prose strong {
@@ -170,7 +170,7 @@
   }
 
   .prose code {
-    @apply bg-muted px-1.5 py-0.5 rounded text-[0.875em] font-mono;
+    @apply bg-muted/70 px-1.5 py-0.5 rounded-sm text-[0.875em] font-mono;
     color: oklch(0.85 0.1 320);
   }
 
@@ -179,7 +179,7 @@
   }
 
   .prose pre {
-    @apply my-4 overflow-hidden;
+    @apply my-3 overflow-hidden;
   }
 
   .prose pre code {
@@ -191,50 +191,50 @@
   }
 
   .prose blockquote {
-    @apply border-l-4 border-primary/40 italic pl-4 py-2 my-4 text-muted-foreground;
+    @apply border-l-2 border-primary/30 italic pl-3 py-1 my-3 text-muted-foreground;
   }
 
   .prose ul {
-    @apply list-disc pl-6 mb-4 space-y-2;
+    @apply list-disc pl-5 mb-3 space-y-1;
   }
 
   .prose ol {
-    @apply list-decimal pl-6 mb-4 space-y-2;
+    @apply list-decimal pl-5 mb-3 space-y-1;
   }
 
   .prose li {
-    @apply leading-7;
+    @apply leading-relaxed;
   }
 
   .prose li > p {
-    @apply mb-2;
+    @apply mb-1.5;
   }
 
   .prose hr {
-    @apply border-border my-8;
+    @apply border-border/50 my-6;
   }
 
   .prose img {
-    @apply rounded-lg my-4;
+    @apply rounded-md my-3;
   }
 
   .prose table {
-    @apply w-full border-collapse border border-border my-4 text-sm;
+    @apply w-full border-collapse my-3 text-sm;
   }
 
   .prose th {
-    @apply border border-border px-4 py-2 bg-muted font-semibold text-left;
+    @apply border-b border-border/50 px-3 py-1.5 bg-muted/30 font-semibold text-left;
   }
 
   .prose td {
-    @apply border border-border px-4 py-2;
+    @apply border-b border-border/30 px-3 py-1.5;
   }
 
   .prose thead {
-    @apply bg-muted;
+    @apply bg-muted/30;
   }
 
   .prose tbody tr:hover {
-    @apply bg-muted/50;
+    @apply bg-muted/20 transition-colors duration-150;
   }
 }
