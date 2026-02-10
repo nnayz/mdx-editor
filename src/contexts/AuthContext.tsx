@@ -27,12 +27,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-
+    // Use onAuthStateChange as the single source of truth.
+    // It fires INITIAL_SESSION on registration (handles normal loads)
+    // and SIGNED_IN after OAuth callback code exchange (handles redirects).
+    // Calling getSession() separately causes a race condition with PKCE flow
+    // where it resolves before the URL auth code is exchanged.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session)

@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Note } from '@/lib/database.types'
 import { useAuth } from '@/contexts/AuthContext'
-import defaultMdx from '@/sample.mdx?raw'
 
 const LOCAL_DRAFT_KEY = 'mdx-editor-draft'
 
@@ -39,25 +38,11 @@ export function useNotes() {
       if (cancelled) return
 
       if (!error && data) {
-        if (data.length === 0) {
-          // New user: create a welcome note
-          const { data: newNote } = await supabase
-            .from('notes')
-            .insert({ user_id: user.id, title: 'Welcome', content: defaultMdx } as Record<string, unknown>)
-            .select()
-            .single<Note>()
-
-          if (!cancelled && newNote) {
-            setNotes([newNote])
-            setActiveNoteId(newNote.id)
-          }
-        } else {
-          setNotes(data)
-          setActiveNoteId(prev => {
-            if (prev && data.some(n => n.id === prev)) return prev
-            return data[0].id
-          })
-        }
+        setNotes(data)
+        setActiveNoteId(prev => {
+          if (prev && data.some(n => n.id === prev)) return prev
+          return data.length > 0 ? data[0].id : null
+        })
       }
       if (!cancelled) setLoading(false)
     }
