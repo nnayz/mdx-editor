@@ -60,7 +60,7 @@ export function EditorLayout() {
               <div className="text-center text-muted-foreground">
                 <p className="text-sm">No notes yet</p>
                 <button
-                  onClick={createNote}
+                  onClick={() => createNote()}
                   className="mt-2 text-xs text-primary hover:underline underline-offset-4"
                 >
                   Create your first note
