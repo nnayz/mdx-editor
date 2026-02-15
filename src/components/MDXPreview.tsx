@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { prism } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface MDXPreviewProps {
   content: string;
@@ -56,6 +57,7 @@ const CodeBlock = ({ className, children, isDarkMode, ...props }: CodeBlockProps
 export function MDXPreview({ content, isDarkMode = false }: MDXPreviewProps) {
   const [MDXContent, setMDXContent] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [compiling, setCompiling] = useState(false);
 
   const components = useMemo(() => ({
     code: (props: CodeBlockProps) => <CodeBlock {...props} isDarkMode={isDarkMode} />,
@@ -71,6 +73,7 @@ export function MDXPreview({ content, isDarkMode = false }: MDXPreviewProps) {
         return;
       }
 
+      setCompiling(true);
       try {
         setError(null);
         const { default: MDXModule } = await evaluate(content, {
@@ -81,6 +84,8 @@ export function MDXPreview({ content, isDarkMode = false }: MDXPreviewProps) {
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to compile MDX');
         console.error('MDX compilation error:', err);
+      } finally {
+        setCompiling(false);
       }
     };
 
@@ -134,8 +139,26 @@ export function MDXPreview({ content, isDarkMode = false }: MDXPreviewProps) {
   }, [MDXContent, error, components]);
 
   return (
-    <div className="h-full overflow-auto p-4">
-      {previewContent}
+    <div className="h-full overflow-auto relative">
+      <AnimatePresence>
+        {compiling && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute top-0 left-0 right-0 z-10 h-0.5 bg-muted overflow-hidden"
+          >
+            <motion.div
+              className="h-full w-1/3 bg-primary/60 rounded-full"
+              animate={{ x: ['-100%', '400%'] }}
+              transition={{ repeat: Infinity, duration: 1, ease: 'easeInOut' }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <div className="p-4">
+        {previewContent}
+      </div>
     </div>
   );
 }

@@ -4,22 +4,35 @@ import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import {
   Plus, Trash2, FileText, Search, Clock, ArrowDownAZ,
-  Camera, LogOut, ArrowLeft, X,
+  Camera, LogOut, ArrowLeft, X, Copy as CopyIcon,
+  CircleCheck, CircleX,
 } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { Note } from '@/lib/database.types'
 
 type IslandView = 'idle' | 'notes' | 'profile'
 type SortMode = 'recent' | 'alpha'
+
+export interface IslandNotification {
+  message: string
+  type: 'success' | 'error'
+  key: number
+  action?: { label: string; onClick: () => void }
+}
 
 interface NotesIslandProps {
   notes: Note[]
   activeNoteId: string | null
   saveStatus: 'saved' | 'saving' | 'idle'
   wordCount: number
+  charCount: number
+  readingTime: number
+  notification: IslandNotification | null
   onSelectNote: (id: string) => void
   onCreateNote: () => void
   onDeleteNote: (id: string) => void
   onRenameNote: (id: string, title: string) => void
+  onDuplicateNote: (id: string) => void
 }
 
 function timeAgo(dateStr: string): string {
@@ -48,10 +61,14 @@ export function NotesIsland({
   activeNoteId,
   saveStatus,
   wordCount,
+  charCount,
+  readingTime,
+  notification,
   onSelectNote,
   onCreateNote,
   onDeleteNote,
   onRenameNote,
+  onDuplicateNote,
 }: NotesIslandProps) {
   const { user, updateProfile, signOut } = useAuth()
   const shouldReduceMotion = useReducedMotion()
@@ -73,10 +90,21 @@ export function NotesIsland({
   const [uploading, setUploading] = useState(false)
   const [profileError, setProfileError] = useState<string | null>(null)
 
+  // Idle title editing state
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [idleTitleValue, setIdleTitleValue] = useState('')
+
+  // Notification state
+  const [activeNotif, setActiveNotif] = useState<{
+    message: string; type: string; action?: { label: string; onClick: () => void }
+  } | null>(null)
+  const [prevNotifKey, setPrevNotifKey] = useState(0)
+
   // Refs
   const islandRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const editInputRef = useRef<HTMLInputElement>(null)
+  const idleTitleInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const activeNote = notes.find(n => n.id === activeNoteId)
@@ -106,6 +134,9 @@ export function NotesIsland({
       if (prev === 'notes') {
         setSearch('')
         setEditingId(null)
+      }
+      if (prev === 'idle') {
+        setEditingTitle(false)
       }
       return newView
     })
@@ -153,6 +184,42 @@ export function NotesIsland({
       editInputRef.current.select()
     }
   }, [editingId])
+
+  // Focus idle title input
+  useEffect(() => {
+    if (editingTitle && idleTitleInputRef.current) {
+      idleTitleInputRef.current.focus()
+      idleTitleInputRef.current.select()
+    }
+  }, [editingTitle])
+
+  // Handle incoming notifications (render-time sync + effect for timer)
+  if (notification && notification.key !== prevNotifKey) {
+    setPrevNotifKey(notification.key)
+    setActiveNotif({ message: notification.message, type: notification.type, action: notification.action })
+  }
+
+  useEffect(() => {
+    if (!activeNotif) return
+    const timer = setTimeout(() => setActiveNotif(null), 3000)
+    return () => clearTimeout(timer)
+  }, [activeNotif])
+
+  // --- Idle title handlers ---
+  const handleIdleTitleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (activeNote) {
+      setEditingTitle(true)
+      setIdleTitleValue(activeNote.title)
+    }
+  }
+
+  const commitIdleTitle = () => {
+    if (activeNote && idleTitleValue.trim()) {
+      onRenameNote(activeNote.id, idleTitleValue.trim())
+    }
+    setEditingTitle(false)
+  }
 
   // --- Note handlers ---
   const handleSelectNote = useCallback((id: string) => {
@@ -240,6 +307,11 @@ export function NotesIsland({
     return String(count)
   }
 
+  const formatCharCount = (count: number) => {
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}k`
+    return String(count)
+  }
+
   const profileInitial = (profileName || user?.email || '?').charAt(0).toUpperCase()
 
   // Spring configs (smoothui DynamicIsland pattern)
@@ -292,78 +364,168 @@ export function NotesIsland({
           {view === 'idle' && (
             <div
               className="flex items-center gap-2.5 px-3 py-2 cursor-pointer select-none"
-              onClick={() => changeView('notes')}
+              onClick={() => !activeNotif && changeView('notes')}
             >
-              {/* Avatar → profile */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  openProfile()
-                }}
-                className="shrink-0"
-              >
-                {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt={displayName}
-                    className="h-6 w-6 rounded-full object-cover ring-1 ring-white/10 hover:ring-white/30 transition-all duration-200"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className="h-6 w-6 rounded-full bg-white/10 text-white/70 flex items-center justify-center text-[10px] font-medium hover:bg-white/15 transition-all duration-200">
-                    {initial}
-                  </div>
-                )}
-              </button>
-
-              {/* Title + save status */}
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-[12px] text-white/80 font-medium truncate max-w-[160px]">
-                  {activeNote?.title || 'No notes'}
-                </span>
-                <AnimatePresence mode="wait">
-                  {saveStatus === 'saving' && (
-                    <motion.div
-                      key="saving"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0, opacity: 0 }}
-                      className="relative h-1.5 w-1.5 shrink-0"
-                    >
-                      <span className="absolute inset-0 rounded-full bg-yellow-500/60 animate-ping" />
-                      <span className="absolute inset-0 rounded-full bg-yellow-500/80" />
-                    </motion.div>
+              {activeNotif ? (
+                /* ── NOTIFICATION CONTENT ── */
+                <motion.div
+                  key="notif"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex items-center gap-2 flex-1"
+                >
+                  {activeNotif.type === 'success' ? (
+                    <CircleCheck className="h-3.5 w-3.5 text-green-400 shrink-0" />
+                  ) : (
+                    <CircleX className="h-3.5 w-3.5 text-red-400 shrink-0" />
                   )}
-                  {saveStatus === 'saved' && (
-                    <motion.div
-                      key="saved"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0, opacity: 0 }}
-                      className="h-1.5 w-1.5 rounded-full bg-green-500/80 shrink-0"
-                    />
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Word count + note count */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                {wordCount > 0 && (
-                  <span className="text-[9px] text-white/20 font-medium tabular-nums">
-                    {formatWordCount(wordCount)}w
+                  <span className="text-[12px] text-white/80 font-medium truncate">
+                    {activeNotif.message}
                   </span>
-                )}
-                <div className="h-2.5 w-px bg-white/[0.06]" />
-                <span className="text-[10px] text-white/30 font-medium tabular-nums">
-                  {notes.length}
-                </span>
-              </div>
+                  {activeNotif.action && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        activeNotif.action!.onClick()
+                        setActiveNotif(null)
+                      }}
+                      className="text-[10px] font-semibold text-blue-400 hover:text-blue-300 shrink-0 px-1.5 py-0.5 rounded bg-white/[0.06] hover:bg-white/[0.1] transition-colors duration-150"
+                    >
+                      {activeNotif.action.label}
+                    </button>
+                  )}
+                </motion.div>
+              ) : (
+                /* ── NORMAL IDLE CONTENT ── */
+                <>
+                  {/* Avatar → profile */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      openProfile()
+                    }}
+                    className="shrink-0"
+                  >
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={displayName}
+                        className="h-6 w-6 rounded-full object-cover ring-1 ring-white/10 hover:ring-white/30 transition-all duration-200"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="h-6 w-6 rounded-full bg-white/10 text-white/70 flex items-center justify-center text-[10px] font-medium hover:bg-white/15 transition-all duration-200">
+                        {initial}
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Title + save status */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    {editingTitle ? (
+                      <input
+                        ref={idleTitleInputRef}
+                        value={idleTitleValue}
+                        onChange={(e) => setIdleTitleValue(e.target.value)}
+                        onBlur={commitIdleTitle}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') commitIdleTitle()
+                          if (e.key === 'Escape') setEditingTitle(false)
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[12px] text-white font-medium bg-transparent outline-none border-b border-white/20 max-w-[160px]"
+                      />
+                    ) : (
+                      <span
+                        onClick={handleIdleTitleClick}
+                        className="text-[12px] text-white/80 font-medium truncate max-w-[160px] cursor-text hover:text-white transition-colors duration-150"
+                      >
+                        {activeNote?.title || 'No notes'}
+                      </span>
+                    )}
+                    <AnimatePresence mode="wait">
+                      {saveStatus === 'saving' && (
+                        <motion.div
+                          key="saving"
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          className="relative h-1.5 w-1.5 shrink-0"
+                        >
+                          <span className="absolute inset-0 rounded-full bg-yellow-500/60 animate-ping" />
+                          <span className="absolute inset-0 rounded-full bg-yellow-500/80" />
+                        </motion.div>
+                      )}
+                      {saveStatus === 'saved' && (
+                        <motion.div
+                          key="saved"
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          className="h-1.5 w-1.5 rounded-full bg-green-500/80 shrink-0"
+                        />
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Stats: reading time + word count + char count + note count */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {wordCount > 0 && (
+                      <span className="text-[9px] text-white/20 font-medium tabular-nums">
+                        ~{readingTime}m
+                      </span>
+                    )}
+                    {wordCount > 0 && (
+                      <span className="text-[9px] text-white/20 font-medium tabular-nums">
+                        {formatWordCount(wordCount)}w
+                      </span>
+                    )}
+                    {charCount > 0 && (
+                      <span className="text-[9px] text-white/20 font-medium tabular-nums">
+                        {formatCharCount(charCount)}c
+                      </span>
+                    )}
+                    <div className="h-2.5 w-px bg-white/[0.06]" />
+                    <span className="text-[10px] text-white/30 font-medium tabular-nums">
+                      {notes.length}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {/* ── NOTES VIEW ── */}
           {view === 'notes' && (
             <div className="w-[320px]">
+              {/* Inline notification strip */}
+              <AnimatePresence>
+                {activeNotif && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-3 py-1.5 flex items-center gap-2 border-b border-white/[0.06] bg-white/[0.02]">
+                      {activeNotif.type === 'success' ? (
+                        <CircleCheck className="h-3 w-3 text-green-400 shrink-0" />
+                      ) : (
+                        <CircleX className="h-3 w-3 text-red-400 shrink-0" />
+                      )}
+                      <span className="text-[10px] text-white/60 flex-1 truncate">{activeNotif.message}</span>
+                      {activeNotif.action && (
+                        <button
+                          onClick={() => { activeNotif.action!.onClick(); setActiveNotif(null) }}
+                          className="text-[9px] font-semibold text-blue-400 hover:text-blue-300 shrink-0"
+                        >
+                          {activeNotif.action.label}
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               {/* Header: close + search + sort + new */}
               <div className="flex items-center gap-1.5 px-2.5 pt-2.5 pb-1.5">
                 <button
@@ -387,20 +549,32 @@ export function NotesIsland({
                     </span>
                   )}
                 </div>
-                <button
-                  onClick={() => setSortMode(m => m === 'recent' ? 'alpha' : 'recent')}
-                  className="p-1.5 rounded-lg text-white/25 hover:text-white/50 hover:bg-white/[0.06] transition-colors duration-150"
-                  title={sortMode === 'recent' ? 'Sort A–Z' : 'Sort by recent'}
-                >
-                  {sortMode === 'recent' ? <Clock className="h-3 w-3" /> : <ArrowDownAZ className="h-3 w-3" />}
-                </button>
-                <button
-                  onClick={handleCreateNote}
-                  className="p-1.5 rounded-lg text-white/25 hover:text-white/50 hover:bg-white/[0.06] transition-colors duration-150"
-                  title="New note"
-                >
-                  <Plus className="h-3 w-3" />
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setSortMode(m => m === 'recent' ? 'alpha' : 'recent')}
+                      className="p-1.5 rounded-lg text-white/25 hover:text-white/50 hover:bg-white/[0.06] transition-colors duration-150"
+                    >
+                      {sortMode === 'recent' ? <Clock className="h-3 w-3" /> : <ArrowDownAZ className="h-3 w-3" />}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">
+                    {sortMode === 'recent' ? 'Sort A-Z' : 'Sort by recent'}
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={handleCreateNote}
+                      className="p-1.5 rounded-lg text-white/25 hover:text-white/50 hover:bg-white/[0.06] transition-colors duration-150"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">
+                    New note
+                  </TooltipContent>
+                </Tooltip>
               </div>
 
               {/* Separator */}
@@ -440,17 +614,40 @@ export function NotesIsland({
                           onClick={(e) => e.stopPropagation()}
                         />
                       ) : (
-                        <span className="text-[11px] font-medium truncate block">{note.title}</span>
+                        <>
+                          <span className="text-[11px] font-medium truncate block">{note.title}</span>
+                          <span className="text-[9px] text-white/15 block mt-0.5">
+                            Created {new Date(note.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
+                        </>
                       )}
                     </div>
                     <span className="text-[9px] opacity-25 shrink-0 tabular-nums">{timeAgo(note.updated_at)}</span>
                     {editingId !== note.id && (
-                      <button
-                        className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 p-0.5 text-white/30 hover:text-red-400 shrink-0"
-                        onClick={(e) => handleDelete(e, note.id)}
-                      >
-                        <Trash2 className="h-2.5 w-2.5" />
-                      </button>
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center gap-0.5">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              className="p-0.5 text-white/30 hover:text-white/60 shrink-0"
+                              onClick={(e) => { e.stopPropagation(); onDuplicateNote(note.id) }}
+                            >
+                              <CopyIcon className="h-2.5 w-2.5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">Duplicate</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              className="p-0.5 text-white/30 hover:text-red-400 shrink-0"
+                              onClick={(e) => handleDelete(e, note.id)}
+                            >
+                              <Trash2 className="h-2.5 w-2.5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">Delete</TooltipContent>
+                        </Tooltip>
+                      </div>
                     )}
                   </button>
                 ))}
@@ -458,7 +655,15 @@ export function NotesIsland({
 
               {/* Footer */}
               <div className="px-3 py-1.5 border-t border-white/[0.04] flex items-center justify-between">
-                <span className="text-[9px] text-white/15">⌘K to toggle · double-click to rename</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] text-white/15">
+                    <kbd className="px-1 py-0.5 rounded bg-white/[0.06] text-white/25 font-mono text-[8px]">⌘K</kbd> toggle
+                  </span>
+                  <span className="text-[9px] text-white/15">
+                    <kbd className="px-1 py-0.5 rounded bg-white/[0.06] text-white/25 font-mono text-[8px]">Esc</kbd> close
+                  </span>
+                  <span className="text-[9px] text-white/15">double-click to rename</span>
+                </div>
                 {wordCount > 0 && (
                   <span className="text-[9px] text-white/15 tabular-nums">{wordCount.toLocaleString()} words</span>
                 )}
@@ -468,7 +673,28 @@ export function NotesIsland({
 
           {/* ── PROFILE VIEW ── */}
           {view === 'profile' && (
-            <div className="w-[280px] px-4 py-3">
+            <div className="w-[280px]">
+              {/* Inline notification strip */}
+              <AnimatePresence>
+                {activeNotif && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-3 py-1.5 flex items-center gap-2 border-b border-white/[0.06] bg-white/[0.02]">
+                      {activeNotif.type === 'success' ? (
+                        <CircleCheck className="h-3 w-3 text-green-400 shrink-0" />
+                      ) : (
+                        <CircleX className="h-3 w-3 text-red-400 shrink-0" />
+                      )}
+                      <span className="text-[10px] text-white/60 flex-1 truncate">{activeNotif.message}</span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <div className="px-4 py-3">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <button
@@ -558,6 +784,7 @@ export function NotesIsland({
                 >
                   {saving ? 'Saving…' : 'Save'}
                 </button>
+              </div>
               </div>
             </div>
           )}

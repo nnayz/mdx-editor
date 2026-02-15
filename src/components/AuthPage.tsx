@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { FaGithub } from 'react-icons/fa'
+import { Loader2 } from 'lucide-react'
 
 export function AuthPage() {
   const { signIn, signUp, signInWithGitHub } = useAuth()
@@ -71,7 +72,14 @@ export function AuthPage() {
           {error && <p className="text-xs text-red-500">{error}</p>}
           {message && <p className="text-xs text-green-500">{message}</p>}
           <Button type="submit" className="w-full h-9 text-sm" disabled={loading}>
-            {loading ? 'Loading...' : isSignUp ? 'Sign up' : 'Sign in'}
+            {loading ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {isSignUp ? 'Creating account...' : 'Signing in...'}
+              </>
+            ) : (
+              isSignUp ? 'Sign up' : 'Sign in'
+            )}
           </Button>
         </form>
 
